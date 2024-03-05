@@ -1,6 +1,7 @@
 // models/Lesson.js
 import { Model } from 'objection';
 import Knex from '../dbConn.js';
+import Course from './Course.js';
 
 Model.knex(Knex);
 
@@ -14,8 +15,7 @@ class Lesson extends Model {
     }
 
     static get relationMappings() {
-        const Course = require('./Course').default; // Import the Course model if you have one
-
+       
         return {
             course: {
                 relation: Model.BelongsToOneRelation,

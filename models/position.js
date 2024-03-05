@@ -1,7 +1,7 @@
-// models/User.js
+// models/position.js
 import { Model } from 'objection';
 import Knex from '../dbConn.js';
-//import bcrypt from 'bcrypt';
+import Unit from './Unit.js'; // Import the Unit model
 
 Model.knex(Knex);
 
@@ -16,17 +16,17 @@ class Position extends Model {
 
   static get relationMappings() {
     return {
-      positions: {
-        relation: Model.HasManyRelation,
-        modelClass: Position,
+      unit: {
+        relation: Model.BelongsToOneRelation,
+        modelClass: Unit,
         join: {
           from: 'org_positions.unitId',
-          to: 'org_units.id',
-        },
-      },
-      // Add any other relationships needed
-    };}
-    
+          to: 'ORG_units.id'
+        }
+      }
+      // Add other relation mappings as needed
+    };
   }
+}
 
 export default Position;

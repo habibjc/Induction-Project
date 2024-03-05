@@ -10,6 +10,7 @@ const router = Router();
 router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
         const courseId = req.params.courseId;
+        const {quizTypeId, lessonId } = req.body;
         // Validate courseId here
 
         // Check if file is uploaded
@@ -36,10 +37,11 @@ router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'D
         const createdOn = new Date();
         const createdOnString = createdOn.toISOString();
         const createdBy = req.user.userId;
-        const quizTypeId = '2';
+/*         const quizTypeId = req.body;
+        const lessonId = req.body; */
 
         // Call function to upload quiz data
-        const result =  await uploadQuizData(workbook, courseId, quizId, quizTypeId, createdOnString, createdBy, res);
+        const result =  await uploadQuizData(workbook, courseId, quizId, quizTypeId,lessonId, createdOnString, createdBy, res);
         // Check if any questions were skipped
         if (result && result.skipped) {
             return res.status(400).json({ error: 'Sorry, there are Similar questions, Upload Failed !!! Contact Support team' });
@@ -54,7 +56,7 @@ router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'D
         next(error);
     }
 });
-async function uploadQuizData(workbook, courseId, quizId, quizTypeId, createdOnString, createdBy, res) {
+async function uploadQuizData(workbook, courseId, quizId, quizTypeId,lessonId, createdOnString, createdBy, res) {
     try {
         // Check if the user has existing questions in IND_tempQuestions
         const existingQuestions = await dbConn('IND_tempQuestions').where('createdBy', createdBy);
@@ -84,7 +86,7 @@ async function uploadQuizData(workbook, courseId, quizId, quizTypeId, createdOnS
 
         // Insert questions into the database
         const skippedQuestions = await Promise.all(questions.map(question =>
-            addTempInductionQuestion(question.description, question.optionA, question.optionB, question.optionC, question.optionD, question.answer, question.marks, quizId, quizTypeId, courseId, createdOnString, createdBy)
+            addTempInductionQuestion(question.description, question.optionA, question.optionB, question.optionC, question.optionD, question.answer, question.marks, quizId, quizTypeId,lessonId, courseId, createdOnString, createdBy)
         ));
 
         // Check if any questions were skipped
@@ -99,12 +101,20 @@ async function uploadQuizData(workbook, courseId, quizId, quizTypeId, createdOnS
 }
 
 
-async function addTempInductionQuestion(description, optionA, optionB, optionC, optionD, answer, marks, quizId, quizTypeId, courseId, createdOnString, createdBy, req) {
+async function addTempInductionQuestion(description, optionA, optionB, optionC, optionD, answer, marks, quizId, quizTypeId,lessonId, courseId, createdOnString, createdBy, req) {
     try {
+       
+             // Stringify JSON data
+             const descriptionString = typeof description === 'object' ? JSON.stringify(description) : String(description);
+             const optionAString = typeof optionA === 'object' ? JSON.stringify(optionA) : String(optionA);
+             const optionBString = typeof optionB === 'object' ? JSON.stringify(optionB) : String(optionB);
+             const optionCString = typeof optionC === 'object' ? JSON.stringify(optionC) : String(optionC);
+             const optionDString = typeof optionD === 'object' ? JSON.stringify(optionD) : String(optionD);
+        
         // Check if a similar question already exists (uploaded by a different user)
         const existingQuestion = await dbConn('IND_tempQuestions')
             .where({
-                description: description
+                description: descriptionString
             })
             .first();
 
@@ -113,10 +123,16 @@ async function addTempInductionQuestion(description, optionA, optionB, optionC, 
             return { skipped: true }; // Indicate that the question was skipped
         }
 
+          // Check if lessonId is provided
+          if (!lessonId) {
+            lessonId = null; // Set lessonId to NULL if not provided
+        }
+
+
         // Call the stored procedure to insert data into the temporary table
         await dbConn.raw(`
-            EXEC dbo.IND_InsertTempQuestion @description = ?, @optionA = ?, @optionB = ?, @optionC = ?, @optionD = ?, @answer = ?, @marks = ?, @quizId = ?, @quizTypeId = ?, @courseId = ?, @createdOn = ?, @createdBy = ?`,
-            [description, optionA, optionB, optionC, optionD, answer, marks, quizId, quizTypeId, courseId, createdOnString, createdBy]
+            EXEC dbo.IND_InsertTempQuestion @description = ?, @optionA = ?, @optionB = ?, @optionC = ?, @optionD = ?, @answer = ?, @marks = ?, @quizId = ?, @quizTypeId = ?,@lessonId = ?, @courseId = ?, @createdOn = ?, @createdBy = ?`,
+            [descriptionString , optionAString, optionBString, optionCString, optionDString, answer, marks, quizId, quizTypeId, lessonId,courseId, createdOnString, createdBy]
         );
 
         // Log the inserted quiz
