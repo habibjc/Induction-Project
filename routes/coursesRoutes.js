@@ -299,7 +299,7 @@ router.get('/courses/:contentId/viewlessonContent', async (req, res, next) => {
     }
     else
     {
-      res.status(404).json({ error: 'No record/s found' });
+      res.status(404).json({ error: 'No Record/s Found' });
     }
 
   } catch (error) {
