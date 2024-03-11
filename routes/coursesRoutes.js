@@ -204,7 +204,10 @@ router.put('/lessoncontent/update/:contentId', authenticateToken, authorizeRoles
 // Retrieve all courses
 router.get('/viewcourses', authenticateToken, authorizeRoles(['EMPLOYEE', 'HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
-        const courses = await Course.query();
+      const courses = await Course.query()
+  .where('isDeleted', 0)  
+  .orderBy('uploadedDate', 'desc');
+
         res.json(courses);
     } catch (error) {
         next(error);
@@ -229,7 +232,7 @@ router.get('/positionsOfLoggedUser', authenticateToken, authorizeRoles(['ADMIN',
   const courseId = req.params.id;
 
   try {
-    const course = await Course.query().findById(courseId);
+    const course = await Course.query().where('isDeleted', 0)  .findById(courseId);
     if (course) {
       res.json(course);
     } else {
@@ -350,28 +353,34 @@ router.get('/courses/:courseId/viewLessons', async (req, res, next) => {
 //// DELETION OF OBJECTS //////
 // Delete a course by ID
 router.delete('/courses/delete/:id', authenticateToken, authorizeRoles(['ADMIN', 'HEAD_OF_UNIT']), async (req, res, next) => {
-    const courseId = req.params.id;
+  const courseId = req.params.id;
 
-    try {
- // Check if there are any lessons associated with the course
- const lessonsCount = await Lesson.query().where('courseId', courseId).resultSize();
+  try {
+      // Check if there are any lessons associated with the course
+      const lessonsCount = await Lesson.query().where('courseId', courseId).resultSize();
 
- if (lessonsCount > 0) {
-     // If there are lessons associated, inform the user
-     res.status(400).json({ error: 'Cannot delete course. Some lessons are associated with this course.' });
-     return;
- }
+      if (lessonsCount === 0) {
+          // If there are no lessons associated, delete the course completely
+          const deletedCourse = await Course.query().deleteById(courseId);
 
-        const deletedCourse = await Course.query().deleteById(courseId);
+          if (deletedCourse) {
+              res.json({ message: 'Course deleted successfully' });
+          } else {
+              res.status(404).json({ error: 'Course not found' });
+          }
+      } else {
+          // If there are lessons associated, update the course by setting isDeleted to 1
+          const updatedCourse = await Course.query().patch({ isDeleted: 1 }).findById(courseId);
 
-        if (deletedCourse) {
-            res.json({ message: 'Course deleted successfully' });
-        } else {
-            res.status(404).json({ error: 'Course not found' });
-        }
-    } catch (error) {
-        next(error);
-    }
+          if (updatedCourse) {
+              res.json({ message: 'Course deleted successfully' });
+          } else {
+              res.status(404).json({ error: 'Course not found' });
+          }
+      }
+  } catch (error) {
+      next(error);
+  }
 });
 
 // Delete a lesson by ID

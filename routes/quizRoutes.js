@@ -4,6 +4,7 @@ import dbConn from '../dbConn.js';
 import Course from '../models/Course.js';
 import authenticateToken from '../middleware/authent.js';
 import authorizeRoles from '../middleware/author.js';
+import { isNull } from 'underscore';
 
 const router = Router();
 
@@ -37,7 +38,7 @@ router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'D
         const createdOn = new Date();
         const createdOnString = createdOn.toISOString();
         const createdBy = req.user.userId;
-        const meth = 'typed';
+        const meth = 'uploaded';
 /*         const quizTypeId = req.body;
         const lessonId = req.body; */
 
@@ -259,10 +260,13 @@ router.post('/confirmInsertQuizQuestions/:userId', async (req, res, next) => {
             return res.status(400).json({ error: 'No questions found uploaded by you. Please upload questions first.' });
         }
 
-        // Get the values for quizTypeId and lessonId from the request body
-        const { quizTypeId, lessonId } = req.body;
-        let finalquizTypeId = quizTypeId;
-        let finalLessonId;
+    // Get the values for quizTypeId and lessonId from the request body
+const { quizTypeId, lessonId } = req.body;
+let finalLessonId;
+
+
+// Convert quizTypeId to a number
+const numericQuizTypeId = parseInt(quizTypeId, 10);
 
 // If lessonId is undefined or an empty string, set it to null
 if (typeof lessonId === 'undefined' || lessonId.trim() === '') {
@@ -271,31 +275,37 @@ if (typeof lessonId === 'undefined' || lessonId.trim() === '') {
     finalLessonId = lessonId;
 }
 
-// If quizTypeId is 2 and lessonId is empty or null, set lessonId to null
-if (finalquizTypeId === 2 && !finalLessonId) {
-    finalLessonId = null; // Set lessonId to null
-  //  console.log("Setting finalLessonId to null");
+// If quizTypeId is 2 and finalLessonId is null, set finalLessonId to null
+if (numericQuizTypeId === 2 && !finalLessonId) {
+    finalLessonId = null;
 }
+// If quizTypeId is 1 and finalLessonId is null, send an error message
+console.log("quizTypeId Before",numericQuizTypeId,'-',typeof numericQuizTypeId); console.log("lessonpeId Before",finalLessonId,'-',typeof finalLessonId);
 
-//console.log("finalquizTypeId:", finalquizTypeId);
-//console.log("finalLessonId:", finalLessonId);
-        // Generate a single quizId for all related questions
-        const quizId = generateQuizId(); // You need to define this function
-               // Update the quizTypeId, lessonId, and quizId for the uploaded questions
-        await dbConn('IND_tempQuestions')
-            .where('createdBy', confirmingUserId)
-            .update({
-                quizTypeId: finalquizTypeId,
-                lessonId: finalLessonId,
-                quizId: quizId
-            });
 
-        // Call the stored procedure to confirm the upload
-        await dbConn.raw('EXEC IND_ConfirmUploadQuestions ?', [confirmingUserId]);
+// Check if numericQuizTypeId is 1 and finalLessonId is null
+if (numericQuizTypeId === 1 && !finalLessonId) {
+    res.status(400).json({ error: 'Sorry, Lesson is required for self-evaluation quizzes.' });
+} else {
+    // Generate a single quizId for all related questions
+    const quizId = generateQuizId(); // You need to define this function
 
-        // Respond with success message
-        res.status(200).json({ message: 'Questions confirmed and inserted into the database successfully.' });
-    } catch (error) {
+    // Update the quizTypeId, lessonId, and quizId for the uploaded questions
+    await dbConn('IND_tempQuestions')
+        .where('createdBy', confirmingUserId)
+        .update({
+            quizTypeId: numericQuizTypeId,
+            lessonId: finalLessonId,
+            quizId: quizId
+        });
+
+    // Call the stored procedure to confirm the upload
+    await dbConn.raw('EXEC IND_ConfirmUploadQuestions ?', [confirmingUserId]);
+
+    // Respond with success message
+    res.status(200).json({ message: 'Questions confirmed and inserted into the database successfully.' });
+   }}
+catch (error) {
         // Handle errors
         console.error('Error confirming upload:', error);
         res.status(500).json({ error: 'An error occurred while confirming quiz questions upload.' });
