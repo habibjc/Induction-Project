@@ -192,7 +192,7 @@ function generateRandomId() {
 
 
 // Display uploaded questions endpoint
-router.get('/displayUploadedQuestions/:userId', authenticateToken, async (req, res, next) => {
+router.get('/displayUploadedQuestions/:userId',  authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
         const userId = req.params.userId;
 
@@ -213,7 +213,7 @@ router.get('/displayUploadedQuestions/:userId', authenticateToken, async (req, r
 });
 
 // Cancel uploaded questions endpoint
-router.delete('/cancelUploadedQuestions/:userId', authenticateToken, async (req, res, next) => {
+router.delete('/cancelUploadedQuestions/:userId',  authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
         const userId = req.params.userId;
 
@@ -228,7 +228,7 @@ router.delete('/cancelUploadedQuestions/:userId', authenticateToken, async (req,
     }
 });
 
-router.post('/confirmUploadQuizQuestions/:userId', async (req, res, next) => {
+router.post('/confirmUploadQuizQuestions/:userId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const confirmingUserId = req.params.userId;
 
     try {
@@ -250,7 +250,7 @@ router.post('/confirmUploadQuizQuestions/:userId', async (req, res, next) => {
     }
 });
 
-router.post('/confirmInsertQuizQuestions/:userId', async (req, res, next) => {
+router.post('/confirmInsertQuizQuestions/:userId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const confirmingUserId = req.params.userId;
 
     try {
@@ -260,60 +260,171 @@ router.post('/confirmInsertQuizQuestions/:userId', async (req, res, next) => {
             return res.status(400).json({ error: 'No questions found uploaded by you. Please upload questions first.' });
         }
 
-    // Get the values for quizTypeId and lessonId from the request body
-const { quizTypeId, lessonId } = req.body;
-let finalLessonId;
+        // Get the values for quizTypeId and lessonId from the request body
+        const { quizTypeId, lessonId } = req.body;
+        let finalLessonId;
+        const quizId = generateQuizId();
+        // Convert quizTypeId to a number
+        const numericQuizTypeId = parseInt(quizTypeId, 10);
 
+        // If lessonId is undefined or an empty string, set it to null
+        if (typeof lessonId === 'undefined' || lessonId.trim() === '') {
+            finalLessonId = null;
+        } else {
+            finalLessonId = lessonId;
+        }
 
-// Convert quizTypeId to a number
-const numericQuizTypeId = parseInt(quizTypeId, 10);
+        // If quizTypeId is 2 and finalLessonId is null, set finalLessonId to null
+        if (numericQuizTypeId === 2 && !finalLessonId) {
+            finalLessonId = null;
+        }
 
-// If lessonId is undefined or an empty string, set it to null
-if (typeof lessonId === 'undefined' || lessonId.trim() === '') {
-    finalLessonId = null;
-} else {
-    finalLessonId = lessonId;
-}
+        // Check if numericQuizTypeId is 1 and finalLessonId is null
+        if (numericQuizTypeId === 1 && !finalLessonId) {
+            return res.status(400).json({ error: 'Sorry, Lesson is required for self-evaluation quizzes.' });
+        }
 
-// If quizTypeId is 2 and finalLessonId is null, set finalLessonId to null
-if (numericQuizTypeId === 2 && !finalLessonId) {
-    finalLessonId = null;
-}
-// If quizTypeId is 1 and finalLessonId is null, send an error message
-console.log("quizTypeId Before",numericQuizTypeId,'-',typeof numericQuizTypeId); console.log("lessonpeId Before",finalLessonId,'-',typeof finalLessonId);
-
-
-// Check if numericQuizTypeId is 1 and finalLessonId is null
-if (numericQuizTypeId === 1 && !finalLessonId) {
-    res.status(400).json({ error: 'Sorry, Lesson is required for self-evaluation quizzes.' });
-} else {
-    // Generate a single quizId for all related questions
-    const quizId = generateQuizId(); // You need to define this function
-
-    // Update the quizTypeId, lessonId, and quizId for the uploaded questions
-    await dbConn('IND_tempQuestions')
-        .where('createdBy', confirmingUserId)
-        .update({
-            quizTypeId: numericQuizTypeId,
-            lessonId: finalLessonId,
-            quizId: quizId
-        });
-
-    // Call the stored procedure to confirm the upload
-    await dbConn.raw('EXEC IND_ConfirmUploadQuestions ?', [confirmingUserId]);
-
-    // Respond with success message
-    res.status(200).json({ message: 'Questions confirmed and inserted into the database successfully.' });
-   }}
-catch (error) {
-        // Handle errors
-        console.error('Error confirming upload:', error);
-        res.status(500).json({ error: 'An error occurred while confirming quiz questions upload.' });
+     // If finalLessonId is not null, retrieve the courseId from IND_Lessons based on the finalLessonId
+let lesson;
+if (finalLessonId !== null) {
+    lesson = await dbConn('IND_Lessons').select('courseId').where('id', finalLessonId).first();
+    if (!lesson) {
+        return res.status(400).json({ error: 'Invalid lessonId. Lesson not found.' });
     }
+}
+
+// Retrieve the questions from IND_tempQuestions for the specified confirmingUserId
+const questions = await dbConn('IND_tempQuestions').where('createdBy', confirmingUserId);
+
+// Iterate through the questions and update only the ones with matching courseId (if finalLessonId is not null)
+for (const question of questions) {
+    // If finalLessonId is not null and courseId exists, check if the courseId matches
+    if (finalLessonId !== null && lesson && question.courseId !== lesson.courseId) {
+        // Respond with error message indicating mismatch in courseId
+        return res.status(400).json({ error: 'The provided lessonId does not match the courseId of the corresponding lesson.' });
+    }
+
+    // Update the quizTypeId, lessonId, and quizId for the question
+    await dbConn('IND_tempQuestions')
+    .where('questionId', question.questionId)
+    .update({
+        quizTypeId: numericQuizTypeId,
+        lessonId: finalLessonId,
+        quizId: quizId
+    });
+
+}
+
+// Call the stored procedure to confirm the upload
+await dbConn.raw('EXEC IND_ConfirmUploadQuestions ?', [confirmingUserId]);
+
+// Respond with success message
+res.status(200).json({ message: 'Questions confirmed and inserted into the database successfully.' });
+
+} catch (error) {
+    // Handle any errors
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+}
 });
+
 function generateQuizId() {
     // Generate a random number between 1000000000 and 9999999999 (inclusive)
     return Math.floor(100000000000 + Math.random() * 900000000000);
 }
+
+// Route to retrieve quizzes in a given course
+router.get('/displayquizzes/:courseId', async (req, res) => {
+    const courseId = req.params.courseId;
+
+    try {
+        // SQL query to fetch quiz details
+        const quizzes = await dbConn.raw('SELECT * FROM IND_GetQuizzesByCourseId(?)', [courseId]);
+
+        // Send quizzes data as JSON response
+         res.status(200).json(quizzes);
+    } catch (error) {
+        console.error('Error fetching quizzes:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Route to get questions and answers for a specific quiz
+router.get('/displayquestions/:quizId',  authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']),async (req, res) => {
+    const { quizId } = req.params;
+
+    try {
+        // Execute the function in the database
+        const questionsAndAnswers = await dbConn.raw('SELECT * FROM IND_GetQuestionsAndAnswersByQuizId(?)', [quizId]);
+
+        // Send the response
+        res.json(questionsAndAnswers);
+    } catch (error) {
+        console.error('Error fetching questions and answers:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+/////// ------ Deleting a Quiz by setting isDeleted to 1 , not completely deleteing it------
+router.put('/deletequiz/:quizId',  authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']),async (req, res) => {
+    const quizId = req.params.quizId;
+
+    try {
+        // SQL query to update the isDeleted column
+        const result = await dbConn.raw(`
+            UPDATE IND_Quizes
+            SET isDeleted = 1
+            WHERE Id = ?
+        `, [quizId]);
+  
+        // Check if any rows were affected by the update
+        if (!result) {
+            return res.status(404).json({ error: 'Quiz not found or already deleted.' });
+        }
+
+        // Quiz successfully deleted
+        res.status(200).json({ message: 'Quiz deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting quiz:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+/////// ------ Updating a Quiz by either changing courseId, lessonId and quizTypeId------
+router.put('/updateQuiz/:quizId',  authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']),async (req, res) => {
+    try {
+        const userId = req.user.userId; // Assuming the user object is available in the request and contains the user's ID
+        const { courseName, quizTypeName, lessonName } = req.body;
+        const quizId = req.params.quizId;
+
+        // Execute the stored procedure using dbConn.raw with parameterized queries
+        await dbConn.raw(`
+            EXEC IND_UpdateQuiz @userId = ?, @quizId = ?, @courseName = ?, @quizTypeName = ?, @lessonName = ?
+        `, [userId, quizId, courseName, quizTypeName, lessonName]);
+
+        res.status(200).json({ message: 'Quiz updated successfully.' });
+    } catch (error) {
+        console.error('Error updating quiz:', error);
+        res.status(500).json({ error: 'An error occurred while updating the quiz.' });
+    }
+});
+
+router.delete('/deleteQuestion/:questionId', async (req, res) => {
+    const questionId = req.params.questionId;
+
+    try {
+        // Call the stored procedure to delete the question
+        const result = await dbConn.raw('EXEC IND_DeleteQuestion ?', [questionId]);
+
+        // Check the result of the stored procedure execution
+        if (result) {
+            res.status(200).json({ message: 'Question deleted successfully.' });
+        } else {
+            res.status(404).json({ error: 'Question not found or already deleted.' });
+        }
+    } catch (error) {
+        console.error('Error deleting question:', error);
+        res.status(500).json({ error: 'An error occurred while deleting the question.' });
+    }
+});
 
 export default router;

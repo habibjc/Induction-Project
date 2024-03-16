@@ -1,43 +1,32 @@
 // index.js or app.js
-import express, { json } from 'express';
+import express from 'express';
 import dotenv from 'dotenv';
-const envr = dotenv.config();
 import fileUpload from 'express-fileupload';
-import pkg from 'body-parser';
-const { urlencoded } = pkg;
-//import dbConn from './dbConn.js';
+import bodyParser from 'body-parser';
 import coursesRoutes from './routes/coursesRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import quizRoutes from './routes/quizRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
-//import author from './middleware/author.js';
-//import authenticateToken from './middleware/authent.js';
+//import path from 'path';  
 
-//const session = require('express-session');
-//const KnexSessionStore = require('connect-session-knex')(session); // Import Knex session store
-
-//import dbConn from './dbConn'; // Import dbConn
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
-//const secret = process.env.SESSION_SECRET;
+/* 
+// Set EJS as the view engine
+app.set('view engine', 'ejs');
 
-app.use(json());
+// Get the directory name of the current module
+const currentDir = path.dirname(new URL(import.meta.url).pathname);
+
+// Set the path to the views directory
+const viewsPath = path.join(currentDir, 'views');
+ */
+app.use(bodyParser.json());
 app.use(errorHandler); // Using the imported errorHandler middleware
 app.use(fileUpload());
-app.use(urlencoded({ extended: true }));
-
-// Configure session middleware
-/* app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: true,
-  store: new KnexSessionStore({
-    knex: dbConn,
-    tablename: 'sessions', // Name of the sessions table in your database
-    createtable: true, // Create the sessions table if it doesn't exist
-  }),
-})); */
+app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use('/auth', authRoutes);
 app.use(quizRoutes);
