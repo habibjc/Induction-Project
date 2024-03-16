@@ -109,6 +109,7 @@ router.post('/addNewQuizFromForm/:courseId', authenticateToken, authorizeRoles([
         const courseId = req.params.courseId;
         const {quizTypeId, lessonId } = req.body;
         // Validate lessonId, quizTypeId, and question data
+     
         if (!req.body.description || !req.body.optionA || !req.body.optionB || !req.body.optionC || !req.body.optionD || !req.body.marks || !req.body.answer) {
             return res.status(400).json({ error: 'Incomplete or invalid form data' });
         }
@@ -167,6 +168,7 @@ async function addTempInductionQuestion(description, optionA, optionB, optionC, 
           // Check if lessonId is provided
           const lessonIdString = lessonId || null;
           const quizTypeIdString = quizTypeId || null;
+          console.log(quizId, typeof quizId)
         if(meth==='typed'){ quizId= null}
           // Call the stored procedure to insert data into the temporary table
         await dbConn.raw(`
