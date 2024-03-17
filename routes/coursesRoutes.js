@@ -67,6 +67,7 @@ router.post('/addCourse', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 
     }
 });
 
+////// INSERTS /////
 // Add a new lesson to a course
 router.post('/courses/:courseId/addLesson', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const courseId = req.params.courseId;
@@ -91,6 +92,7 @@ router.post('/courses/:courseId/addLesson', authenticateToken, authorizeRoles(['
     }
 });
 
+////// INSERTS /////
 // Add content to a lesson
 router.post('/courses/:lessonId/addLessonContent', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const lessonId = req.params.lessonId;
@@ -123,7 +125,7 @@ router.post('/courses/:lessonId/addLessonContent', authenticateToken, authorizeR
 });
 
 //// UPDATES /////
-
+// Update a course by ID
 router.put('/courses/update/:courseId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const courseId = req.params.courseId;
     const courseData = req.body;
@@ -227,6 +229,7 @@ router.get('/positionsOfLoggedUser', authenticateToken, authorizeRoles(['ADMIN',
   }
 });
 
+//New!!!
  // Retrieve a single course by ID
  router.get('/viewonecourse/:id', async (req, res, next) => {
   const courseId = req.params.id;
@@ -243,7 +246,7 @@ router.get('/positionsOfLoggedUser', authenticateToken, authorizeRoles(['ADMIN',
   }
 });
 
-
+//New!!!
 // Retrieving a specific lesson and its contents
 router.get('/viewonelesson/:lessonId', authenticateToken, async (req, res, next) => {
   const lessonId = req.params.lessonId;
@@ -268,6 +271,7 @@ router.get('/viewonelesson/:lessonId', authenticateToken, async (req, res, next)
   }
 });
 
+//New!!!!
 // Route to display lesson content for a specific course
 router.get('/courses/:courseId/lessonContent', async (req, res, next) => {
   try {
@@ -289,6 +293,7 @@ router.get('/courses/:courseId/lessonContent', async (req, res, next) => {
   }
 });
 
+//New
 // Route to display lesson content for a specific lesson_content
 router.get('/courses/:contentId/viewlessonContent', async (req, res, next) => {
   try {
@@ -311,6 +316,7 @@ router.get('/courses/:contentId/viewlessonContent', async (req, res, next) => {
   }
 });
 
+//New!!!
 // Retrieve all lessons for a specific course
 router.get('/courses/:lessonId/viewContentInLesson', async (req, res, next) => {
   const lessonId = req.params.lessonId;
@@ -329,6 +335,7 @@ router.get('/courses/:lessonId/viewContentInLesson', async (req, res, next) => {
       next(error);
   }
 });
+
 
 // Retrieve all lessons for a specific course
 router.get('/courses/:courseId/viewLessons', async (req, res, next) => {

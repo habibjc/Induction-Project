@@ -14,6 +14,9 @@ router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'D
         const {quizTypeId, lessonId } = req.body;
         // Validate courseId here
 
+        console.log(req.body);
+        console.log(req.files);
+
         // Check if file is uploaded
         if (!req.files || !req.files.quizExcel) {
             return res.status(400).json({ error: 'No Excel file uploaded' });
@@ -47,10 +50,10 @@ router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'D
         // Check if any questions were skipped
         if (result && result.skipped) {
             return res.status(400).json({ error: 'Sorry, there are Similar questions, Upload Failed !!! Contact Support team' });
+        } else {
+            res.status(200).json({ message: 'Questions uploaded successfully !!!' }); 
         }
-
-        // Respond with success message
-        res.status(200).json({ message: 'Questions uploaded successfully !!!' });
+       
    
     } catch (error) {
         // Handle errors
@@ -200,11 +203,6 @@ router.get('/displayUploadedQuestions/:userId',  authenticateToken, authorizeRol
 
         // Fetch uploaded questions for the given user ID
         const uploadedQuestions = await dbConn('IND_tempQuestions').where('createdBy', userId);
-
-        // Check if any questions were found
-        if (!uploadedQuestions || uploadedQuestions.length === 0) {
-            return res.status(404).json({ error: 'No uploaded questions found' });
-        }
 
         // Return the uploaded questions
         res.status(200).json({ uploadedQuestions });

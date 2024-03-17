@@ -7,12 +7,12 @@ import coursesRoutes from './routes/coursesRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import quizRoutes from './routes/quizRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
-//import path from 'path';  
+import cors from "cors";   //Was missing
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 /* 
 // Set EJS as the view engine
 app.set('view engine', 'ejs');
@@ -23,11 +23,12 @@ const currentDir = path.dirname(new URL(import.meta.url).pathname);
 // Set the path to the views directory
 const viewsPath = path.join(currentDir, 'views');
  */
+
+app.use(cors());   //Was missing
 app.use(bodyParser.json());
 app.use(errorHandler); // Using the imported errorHandler middleware
 app.use(fileUpload());
 app.use(bodyParser.urlencoded({ extended: true }));
-
 app.use('/auth', authRoutes);
 app.use(quizRoutes);
 app.use(coursesRoutes);
