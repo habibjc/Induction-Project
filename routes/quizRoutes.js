@@ -427,4 +427,89 @@ router.delete('/deleteQuestion/:questionId', async (req, res) => {
     }
 });
 
+
+router.put('/updatequestion/:questionId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res) => {
+    const questionId = req.params.questionId;
+    const { description, options } = req.body;
+
+    try {
+        // Update question description if provided
+        if (description) {
+            await knex.raw('UPDATE IND_Questions SET Description = :description WHERE id = :questionId', { description, questionId });
+        }
+
+        // Update options
+        await Promise.all(options.map(async (option) => {
+            await knex.raw('UPDATE IND_QuestionAnswers SET optionDescription = :optionDescription, isCorrect = :isCorrect WHERE questionId = :questionId AND options = :optionChar', { 
+                optionDescription: option.optionDescription, 
+                isCorrect: option.isCorrect ? 1 : 0, 
+                questionId, 
+                optionChar: option.optionChar 
+            });
+        }));
+
+        res.status(200).json({ message: 'Question updated successfully.' });
+    } catch (error) {
+        console.error('An error occurred:', error);
+        res.status(500).json({ error: 'Failed to update question. Please try again.' });
+    }
+});
+
+
+// Route to display courses for HR
+router.get('/positions_in_institution/:positionId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res) => {
+    try {
+        // Get the positionId from the request parameters
+        const positionId = req.params.positionId;
+        const { entitySectorId } = req.user;
+        // Query to retrieve courses for the specified position
+        const query = `
+            SELECT c.id,c.title,c.description,courseImage
+            FROM IND_Courses c
+            JOIN IND_positionCourses pc ON c.id = pc.courseId
+            WHERE pc.positionID = ? AND c.isDeleted = 0 AND c.entitySectorId = ?
+        `;
+
+        // Execute the query to fetch courses
+        const courses = await dbConn.raw(query, [positionId, entitySectorId]);
+
+        // Send the courses as a response
+        res.json(courses);
+    } catch (error) {
+        // Handle errors
+        console.error('Error fetching courses:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Route to display courses for employees
+
+router.get('/courses_for_employeeposition/', authenticateToken, authorizeRoles(['EMPLOYEE','HR', 'DEVELOPER', 'ADMIN']), async (req, res) => {
+    try {
+        // Get the employeeId, entitySectorId, and positionId from the request user object
+        const { userId, entitySectorId } = req.user;
+
+        // Query to retrieve courses for the specified employee's position
+        const query = `
+            SELECT c.id,c.title,c.description,courseImage
+            FROM IND_Courses c
+            JOIN IND_positionCourses pc ON c.id = pc.courseId
+            WHERE pc.positionId IN (
+                SELECT positionId FROM ORG_employeepositions WHERE employeeId = ?
+            ) AND c.isDeleted = 0 AND c.entitySectorId = ?
+        `;
+
+        // Execute the query to fetch courses
+        const courses = await dbConn.raw(query, [userId, entitySectorId]);
+
+        // Send the courses as a response
+        res.json(courses);
+    } catch (error) {
+        // Handle errors
+        console.error('Error fetching courses:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
 export default router;
