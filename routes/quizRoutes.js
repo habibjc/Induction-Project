@@ -11,16 +11,12 @@ const router = Router();
 router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
         const courseId = req.params.courseId;
-<<<<<<< HEAD
-      
-=======
-        const {quizTypeId, lessonId } = req.body;
+        //const {quizTypeId, lessonId } = req.body;
         // Validate courseId here
 
         console.log(req.body);
         console.log(req.files);
 
->>>>>>> 99c707a1424c6996bc9d24317a09c352f0d167b7
         // Check if file is uploaded
         if (!req.files || !req.files.quizExcel) {
             return res.status(400).json({ error: 'No Excel file uploaded' });
@@ -325,12 +321,7 @@ async function addTempInductionQuestion(description, optionA, optionB, optionC, 
 
           // Check if lessonId is provided
           const lessonIdString = lessonId || null;
-<<<<<<< HEAD
         
-=======
-          const quizTypeIdString = quizTypeId || null;
-          console.log(quizId, typeof quizId)
->>>>>>> 99c707a1424c6996bc9d24317a09c352f0d167b7
         if(meth==='typed'){ quizId= null}
           // Call the stored procedure to insert data into the temporary table
         await dbConn.raw(`
@@ -403,9 +394,15 @@ router.post('/confirmUploadQuizQuestions/:userId', authenticateToken, authorizeR
         // Respond with success message
         res.status(200).json({ message: 'Questions confirmed and inserted into database successfully' });
     } catch (error) {
-        // Handle errors
-        console.error('Error confirming upload:', error);
-        res.status(500).json({ error: 'An error occurred while confirming quiz questions upload' });
+        // Check if the error is due to constraint violation
+        if (error.number === 51000 && error.message.includes('Cannot insert another record with the same courseId and quizType 2')) {
+            // If the error is due to the constraint violation, send custom error message to the user
+            res.status(400).json({ error: 'Sorry, you cannot have 2 final quizzes on a single course. Please go to Quiz and add questions.' });
+        } else {
+            // For other types of errors, send the specific error message returned by the stored procedure
+            console.error('An error occurred while confirming quiz questions upload:', error.message);
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
