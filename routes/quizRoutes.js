@@ -11,7 +11,16 @@ const router = Router();
 router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
         const courseId = req.params.courseId;
+<<<<<<< HEAD
       
+=======
+        const {quizTypeId, lessonId } = req.body;
+        // Validate courseId here
+
+        console.log(req.body);
+        console.log(req.files);
+
+>>>>>>> 99c707a1424c6996bc9d24317a09c352f0d167b7
         // Check if file is uploaded
         if (!req.files || !req.files.quizExcel) {
             return res.status(400).json({ error: 'No Excel file uploaded' });
@@ -47,10 +56,10 @@ router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'D
         // Check if any questions were skipped
         if (result && result.skipped) {
             return res.status(400).json({ error: 'Sorry, there are Similar questions, Upload Failed !!! Contact Support team' });
+        } else {
+            res.status(200).json({ message: 'Questions uploaded successfully !!!' }); 
         }
-
-        // Respond with success message
-        res.status(200).json({ message: 'Questions uploaded successfully !!!' });
+       
    
     } catch (error) {
         // Handle errors
@@ -211,6 +220,7 @@ router.post('/addNewQuizFromForm/:courseId', authenticateToken, authorizeRoles([
     try {
         const courseId = req.params.courseId;
         // Validate lessonId, quizTypeId, and question data
+     
         if (!req.body.description || !req.body.optionA || !req.body.optionB || !req.body.optionC || !req.body.optionD || !req.body.marks || !req.body.answer) {
             return res.status(400).json({ error: 'Incomplete or invalid form data' });
         }
@@ -315,7 +325,12 @@ async function addTempInductionQuestion(description, optionA, optionB, optionC, 
 
           // Check if lessonId is provided
           const lessonIdString = lessonId || null;
+<<<<<<< HEAD
         
+=======
+          const quizTypeIdString = quizTypeId || null;
+          console.log(quizId, typeof quizId)
+>>>>>>> 99c707a1424c6996bc9d24317a09c352f0d167b7
         if(meth==='typed'){ quizId= null}
           // Call the stored procedure to insert data into the temporary table
         await dbConn.raw(`
@@ -347,11 +362,6 @@ router.get('/displayUploadedQuestions/:userId',  authenticateToken, authorizeRol
 
         // Fetch uploaded questions for the given user ID
         const uploadedQuestions = await dbConn('IND_tempQuestions').where('createdBy', userId);
-
-        // Check if any questions were found
-        if (!uploadedQuestions || uploadedQuestions.length === 0) {
-            return res.status(404).json({ error: 'No uploaded questions found' });
-        }
 
         // Return the uploaded questions
         res.status(200).json({ uploadedQuestions });

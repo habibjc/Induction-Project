@@ -34,7 +34,7 @@ router.post('/login', async (req, res, next) => {
         roles,
       },
       secretKey,
-      { expiresIn: '1h' }
+      // { expiresIn: '1h' }
     );
 
     // Return the token
