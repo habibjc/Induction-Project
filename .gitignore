@@ -4,3 +4,4 @@ node_modules/
 # Ignore config folder
 config/
 .env
+/uploads
