@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, query } from 'express';
 import Joi from 'joi';
 import dbConn from '../dbConn.js';
 import Course from '../models/Course.js';
@@ -9,6 +9,7 @@ import  CoursePositionAssignment from '../models/CoursePositionAssignment.js';
 import LessonContent from '../models/LessonContent.js';
 import authenticateToken from '../middleware/authent.js';
 import authorizeRoles from '../middleware/author.js';
+import EmployeeCourse from '../models/EmployeeCourse.js';
 
 
 
@@ -469,5 +470,40 @@ router.post('/assignCourse', authenticateToken, authorizeRoles(['HEAD_OF_UNIT', 
       next(error);
   }
 });
-// Endpoint to assign a course to a position
+   //////////// Enrolling in a course /////////////////
+   ///////////////////////////////////////////////////
+router.post('/enrollCourse/:courseId', authenticateToken, authorizeRoles(['EMPLOYEE','HEAD_OF_UNIT', 'ADMIN', 'DEVELOPER']), async (req, res) => {
+    const { userId } = req.user; 
+    const { courseId } = req.params;
+
+    try {
+        // Check if the user has another course in progress
+    
+        const existingCourse = await EmployeeCourse.query('IND_EmployeeCourse')
+            .where('UserId', userId)
+            .whereNot('StatusId', 4)
+            .first();
+
+        if (existingCourse) {
+            res.status(400).json({ error: 'You already have another course in progress.' });
+            return;
+        }
+
+        const enrollment = {
+            UserId: userId,
+            CourseId: courseId,
+            StatusId: 2, 
+            StartDate: new Date(), 
+            EndDate: null 
+        };
+        
+        await EmployeeCourse.query('IND_EmployeeCourse').insert(enrollment);
+
+        res.status(200).json({ message: 'Employee enrolled in course successfully.' });
+    } catch (error) {
+        console.error('An error occurred while enrolling employee in course:', error);
+        res.status(500).json({ error: 'An error occurred while enrolling employee in course. Please try again.' });
+    }
+});
+
 export default router;
