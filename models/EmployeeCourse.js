@@ -1,7 +1,7 @@
-// models/position.js
+
 import { Model } from 'objection';
 import Knex from '../dbConn.js';
-import Course from './Course.js'; // Import the Unit model
+import Course from './Course.js'; 
 
 Model.knex(Knex);
 

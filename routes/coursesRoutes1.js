@@ -3,9 +3,8 @@ import Joi from 'joi';
 import dbConn from '../dbConn.js';
 import Course from '../models/Course.js';
 import Lesson from '../models/Lesson.js';
-import EmployeeContent from '../models/EmployeeContent.js';
-import Notification from '../models/Notification.js';
-import User from '../models/User.js';
+import Position from '../models/position.js';
+import EmployeePosition from '../models/EmployeePosition.js';
 import  CoursePositionAssignment from '../models/CoursePositionAssignment.js';
 import LessonContent from '../models/LessonContent.js';
 import authenticateToken from '../middleware/authent.js';
@@ -17,7 +16,7 @@ const router = Router();
 
 ////// INSERTS /////
 // Add a new course
-router.post('/addCourse', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.post('/addCourse', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const courseData = req.body;
   
     try {
@@ -28,7 +27,6 @@ router.post('/addCourse', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGH
         title: Joi.string().required(),
         description: Joi.string().required(),
         courseImage: Joi.string(),
-        courseLevel: Joi.string().required(),
       });
   
       const { error } = schema.validate(courseData);
@@ -73,7 +71,7 @@ router.post('/addCourse', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGH
 
 ////// INSERTS /////
 // Add a new lesson to a course
-router.post('/courses/:courseId/addLesson', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.post('/courses/:courseId/addLesson', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const courseId = req.params.courseId;
     const lessonData = req.body;
 
@@ -98,7 +96,7 @@ router.post('/courses/:courseId/addLesson', authenticateToken, authorizeRoles(['
 
 ////// INSERTS /////
 // Add content to a lesson
-router.post('/courses/:lessonId/addLessonContent', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.post('/courses/:lessonId/addLessonContent', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const lessonId = req.params.lessonId;
     const lessonContentData = req.body;
     const files = req.files;
@@ -130,7 +128,7 @@ router.post('/courses/:lessonId/addLessonContent', authenticateToken, authorizeR
 
 //// UPDATES /////
 // Update a course by ID
-router.put('/courses/update/:courseId', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.put('/courses/update/:courseId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const courseId = req.params.courseId;
     const courseData = req.body;
 
@@ -143,7 +141,6 @@ router.put('/courses/update/:courseId', authenticateToken, authorizeRoles(['INDU
         const schema = Joi.object({
             title: Joi.string().required(),
             description: Joi.string().required(),
-            courseLevel: Joi.string().required(),
         });
 
         const { error } = schema.validate(courseData);
@@ -160,7 +157,7 @@ router.put('/courses/update/:courseId', authenticateToken, authorizeRoles(['INDU
 });
 
 // updating the lesson's title and description
-router.put('/lessons/update/:lessonId', authenticateToken, authorizeRoles(['HINDUCTION_OVERSIGHTR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.put('/lessons/update/:lessonId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const lessonId = req.params.lessonId;
     const lessonData = req.body;
 
@@ -192,7 +189,7 @@ router.put('/lessons/update/:lessonId', authenticateToken, authorizeRoles(['HIND
 });
 
 // updating the lessoncontent
-router.put('/lessoncontent/update/:contentId', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.put('/lessoncontent/update/:contentId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const contentId = req.params.contentId;
     const updatedContentData = req.body;
 
@@ -208,8 +205,8 @@ router.put('/lessoncontent/update/:contentId', authenticateToken, authorizeRoles
 
 /// RETRIEVALS ////
 
-// Retrieve all courses for HRs
-router.get('/viewcourses', authenticateToken, authorizeRoles(['HR', 'INDUCTION_OVERSIGHT', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+// Retrieve all courses
+router.get('/viewcourses', authenticateToken, authorizeRoles(['EMPLOYEE', 'HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
       const courses = await Course.query()
   .where('isDeleted', 0)  
@@ -221,6 +218,18 @@ router.get('/viewcourses', authenticateToken, authorizeRoles(['HR', 'INDUCTION_O
     }
 });
 
+router.get('/positionsOfLoggedUser', authenticateToken, authorizeRoles(['ADMIN', 'HEAD_OF_UNIT']), async (req, res, next) => {
+  try {
+     
+      const userId = req.user.userId;
+
+      const positions = await dbConn.raw('EXEC IND_GetPositionsForLoggedUser @userId = ?', [userId]);
+
+      res.json(positions);
+  } catch (error) {
+      next(error);
+  }
+});
 
 //New!!!
  // Retrieve a single course by ID
@@ -310,7 +319,7 @@ router.get('/courses/:contentId/viewlessonContent', async (req, res, next) => {
 });
 
 //New!!!
-// Retrieve all content for a specific lesson
+// Retrieve all lessons for a specific course
 router.get('/courses/:lessonId/viewContentInLesson', async (req, res, next) => {
   const lessonId = req.params.lessonId;
 
@@ -348,7 +357,7 @@ router.get('/courses/:courseId/viewLessons', async (req, res, next) => {
       next(error);
   }
 });
-// other retrieval routes...
+// Your other retrieval routes...
 
 //// DELETION OF OBJECTS //////
 // Delete a course by ID
@@ -425,47 +434,89 @@ router.delete('/lessoncontents/delete/:id', authenticateToken, authorizeRoles(['
     }
 });
 
-    //// DISPLAYS ///////
-// Route to display courses for employees
 
-router.get('/courses_for_employeeposition/', authenticateToken, authorizeRoles(['EMPLOYEE','INDUCTION_OVERSIGHT', 'DEVELOPER', 'ADMIN']), async (req, res) => {
+// Assigning Course to Position
+
+router.post('/assignCourse', authenticateToken, authorizeRoles(['HEAD_OF_UNIT', 'ADMIN', 'DEVELOPER']), async (req, res, next) => {
+  try {
+      const { courseId, positionId } = req.body; 
+      const { userId } = req.user;
+
+      // Call the stored procedure
+      const result = await dbConn.raw('EXEC IND_AssignCourseToPosition ?, ?, ?', [courseId, positionId, userId]);
+
+      // Check the result of the stored procedure
+      if (result &&  result.length > 0) {
+          const { message, error } = result[0];
+          if (message) {
+              // Course assigned successfully
+              res.status(200).json({ message });
+          } else if (error) {
+              // Error occurred during assignment
+              res.status(400).json({ error });
+          } else {
+              // Unexpected result
+              res.status(500).json({ error: 'Unexpected result from stored procedure' });
+          }
+      } else {
+          // No result or unexpected result
+          res.status(500).json({ error: 'No result or unexpected result from stored procedure' });
+      }
+  } catch (error) {
+      console.error('Error assigning course to position:', error);
+      next(error);
+  }
+});
+
+// Route to display courses for HR
+router.get('/positions_in_institution/:positionId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res) => {
     try {
-        // Get the employeeId, entitySectorId, and positionId from the request user object
-        const { userId} = req.user;
-
-        // Query to retrieve courses for the specified employee's position
+        // Get the positionId from the request parameters
+        const positionId = req.params.positionId;
+        const { entitySectorId } = req.user;
+        // Query to retrieve courses for the specified position
         const query = `
-        SELECT c.id, c.title, c.description
-        FROM IND_Courses c
-        WHERE c.courseLevel = 
-            CASE 
-                WHEN EXISTS (
-                    SELECT 1 
-                    FROM org_employeepositions ep 
-                    JOIN org_positions p ON ep.positionId = p.id 
-                    WHERE ep.employeeId = ? 
-                        AND p.levelId BETWEEN 10 AND 20
-                ) THEN 1
-                WHEN EXISTS (
-                    SELECT 1 
-                    FROM org_employeepositions ep 
-                    JOIN org_positions p ON ep.positionId = p.id 
-                    WHERE ep.employeeId = ? 
-                        AND p.levelId BETWEEN 7 AND 9
-                ) THEN 2
-                WHEN EXISTS (
-                    SELECT 1 
-                    FROM org_employeepositions ep 
-                    JOIN org_positions p ON ep.positionId = p.id 
-                    WHERE ep.employeeId = ? 
-                        AND p.levelId BETWEEN 2 AND 6
-                ) THEN 3
-                ELSE c.courseLevel
-            END;
+            SELECT c.id,c.title,c.description,courseImage
+            FROM IND_Courses c
+            JOIN IND_positionCourses pc ON c.id = pc.courseId
+            WHERE pc.positionID = ? AND c.isDeleted = 0 AND c.entitySectorId = ?
         `;
 
         // Execute the query to fetch courses
-        const courses = await dbConn.raw(query, [userId,userId,userId]);
+        const courses = await dbConn.raw(query, [positionId, entitySectorId]);
+   if(courses.length === 0)
+   {
+    res.status(400).json({message:'No Courses found !!!'});
+   }
+   else{
+        // Send the courses as a response
+        res.json(courses); }
+    } catch (error) {
+        // Handle errors
+        console.error('Error fetching courses:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Route to display courses for employees
+
+router.get('/courses_for_employeeposition/', authenticateToken, authorizeRoles(['EMPLOYEE','HR', 'DEVELOPER', 'ADMIN']), async (req, res) => {
+    try {
+        // Get the employeeId, entitySectorId, and positionId from the request user object
+        const { userId, entitySectorId } = req.user;
+
+        // Query to retrieve courses for the specified employee's position
+        const query = `
+            SELECT c.id,c.title,c.description,courseImage
+            FROM IND_Courses c
+            JOIN IND_positionCourses pc ON c.id = pc.courseId
+            WHERE pc.positionId IN (
+                SELECT positionId FROM ORG_employeepositions WHERE employeeId = ?
+            ) AND c.isDeleted = 0 AND c.entitySectorId = ?
+        `;
+
+        // Execute the query to fetch courses
+        const courses = await dbConn.raw(query, [userId, entitySectorId]);
         if(courses.length === 0)
         {
          res.status(400).json({message:'No Courses found !!!'});
@@ -482,8 +533,7 @@ router.get('/courses_for_employeeposition/', authenticateToken, authorizeRoles([
 
    //////////// Enrolling in a course /////////////////
    ///////////////////////////////////////////////////
-  
-router.post('/enrollCourse/:courseId', authenticateToken, authorizeRoles(['EMPLOYEE','HEAD_OF_UNIT', 'ADMIN', 'DEVELOPER']), async (req, res) => {
+   router.post('/enrollCourse/:courseId', authenticateToken, authorizeRoles(['EMPLOYEE','HEAD_OF_UNIT', 'ADMIN', 'DEVELOPER']), async (req, res) => {
     const { userId } = req.user; 
     const { courseId } = req.params;
 
@@ -491,72 +541,40 @@ router.post('/enrollCourse/:courseId', authenticateToken, authorizeRoles(['EMPLO
         console.log('User ID:', userId);
         console.log('Course ID:', courseId);
 
-        // Retrieve the user's firstName and lastName
-        const user = await User.query().findById(userId).select('firstName', 'lastName','email');
-        if (!user) {
-            res.status(404).json({ error: 'User not found.' });
-            return;
-        }
-
-        // Retrieve the course title
-        const course = await Course.query().findById(courseId).select('title');
-        if (!course) {
-            res.status(404).json({ error: 'Course not found.' });
-            return;
-        }
-
-     //   console.log('User:', user);
-     //   console.log('Course:', course);
-
         // Check if the user has another course in progress
-      /*   const existingCourse = await EmployeeCourse.query()
-            .where('statusId', '<>', 3)
-            .andWhere('userId', '=', userId)
-            .andWhere('endDate', null)
-            .select('courseId');
-        
+        const existingCourse = await EmployeeCourse.query()
+        .where('statusId', '<>', 4)
+        .andWhere('userId', '=', userId)
+        .andWhere('endDate', null)
+        .select('courseId');
         console.log('Existing Course:', existingCourse);
 
         if (existingCourse.length > 0) {
             res.status(400).json({ error: 'You already have another course in progress.' });
             return;
-        } */
+        }
 
         const enrollment = {
             id: `${courseId}-${userId}`,
             UserId: userId,
             CourseId: courseId,
-            StatusId: 1, 
+            StatusId: 2, 
             StartDate: new Date(), 
             EndDate: null 
         };
         
-        const assignCourse =  await EmployeeCourse.query().insert(enrollment);
-        if(assignCourse){
-        // Send enrollment confirmation email with user's name and course title
-        const mailBody = `Dear ${user.firstName} ${user.lastName},\n\nYou have successfully enrolled in the ${course.title} course for induction. Thank you!`;
-        const subjectContent = 'Induction Course Enrollment Information'; 
-        const copiedAddress = '';
-        await Notification.query().insertAndFetch({
-            toAddress: user.email,
-            subject: subjectContent,
-            body: mailBody,
-            ccAddress: copiedAddress,
-            isSent: false,
-            sentOn: new Date(),
-            createdOn: new Date(),
-            appEnv: process.env.NODE_ENV,
-        });
-        res.status(200).json({ message: 'Enrolled.' });}
+        await EmployeeCourse.query().insert(enrollment);
+
+        res.status(200).json({ message: 'Enrolled.',new:date() });
     } catch (error) {
         console.error('An error occurred while enrolling employee in course:', error);
         res.status(500).json({ error: 'An error occurred while enrolling employee in course. Please try again.' });
     }
 });
 
-/////// User Course Details Display from a list of courses he enrolled in /////////
-////////////////////////////////////////////////////////////////////////////////////
-router.get('/courseDetails/:courseId', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT','EMPLOYEE','HEAD_OF_UNIT', 'ADMIN', 'DEVELOPER']),async (req, res) => {
+/////// User Course Details Display from a list of courses in his position /////////
+///////////////////////////////////////////////////////////////////////////////////
+router.get('/courseDetails/:courseId', authenticateToken, authorizeRoles(['EMPLOYEE','HEAD_OF_UNIT', 'ADMIN', 'DEVELOPER']),async (req, res) => {
     const { courseId } = req.params;
 
     try {
@@ -587,6 +605,7 @@ router.get('/courseDetails/:courseId', authenticateToken, authorizeRoles(['INDUC
 // Construct the final quiz object with the label
 const finalQuizObject = finalQuiz ? { quizId: finalQuiz.quizId, quizTitle: 'Final Quiz' } : null;
 
+
         // Construct the response object
         const courseDetailsResponse = {
             courseTitle: courseDetails.courseTitle,
@@ -598,7 +617,7 @@ const finalQuizObject = finalQuiz ? { quizId: finalQuiz.quizId, quizTitle: 'Fina
             })),
             finalQuiz: finalQuiz ? {
                 quizId: finalQuiz.quizId,
-                quizTitle: 'Final_Quiz'
+                quizTitle: finalQuiz.quizTitle
             } : null
         };
         
@@ -609,46 +628,10 @@ const finalQuizObject = finalQuiz ? { quizId: finalQuiz.quizId, quizTitle: 'Fina
         res.status(500).json({ error: 'An error occurred while fetching course details.' });
     }
 });
-/////// Lessons and content titles /////////
-/////////////////////////////////////////////////////////////////////////////////////////////////
-router.get('/lessonsAndContentTitles/:lessonId', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT','EMPLOYEE','HEAD_OF_UNIT', 'ADMIN', 'DEVELOPER']),async (req, res) => {
-    const { lessonId } = req.params;
-    
-        try {
-            // Retrieve lesson details
-            const lessonDetails = await dbConn('IND_Lessons')
-                .select('id as lessonId', 'title as lessonTitle', 'description as lessonDescription')
-                .where('id', lessonId)
-                .first();
-    
-            if (!lessonDetails) {
-                return res.status(404).json({ error: 'Lesson not found.' });
-            }
-    
-            // Retrieve lesson contents for the lesson
-            lessonDetails.lessonContents = await dbConn('IND_LessonContent')
-                .select('id', 'title')
-                .where('lessonId', lessonId);
-    
-            // Construct the response object
-            const lessonDetailsResponse = {
-                lessonTitle: lessonDetails.lessonTitle,
-                lessonDescription: lessonDetails.lessonDescription,
-                lessonContents: lessonDetails.lessonContents,
-              //  quizzes: lessonDetails.quizzes
-            };
-    
-            res.status(200).json(lessonDetailsResponse);
-        } catch (error) {
-            console.error('Error fetching lesson details:', error);
-            res.status(500).json({ error: 'An error occurred while fetching lesson details.' });
-        }
-    });
-
 
 /////// User Lesson Details Display from a list of Lessons in his selected courseDetails /////////
-////////////////////////////Currently not in use, confused with lessonContent/////////////////////////
-router.get('/lessonDetails/:lessonId', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT','EMPLOYEE','HEAD_OF_UNIT', 'ADMIN', 'DEVELOPER']),async (req, res) => {
+/////////////////////////////////////////////////////////////////////////////////////////////////
+router.get('/lessonDetails/:lessonId', authenticateToken, authorizeRoles(['EMPLOYEE','HEAD_OF_UNIT', 'ADMIN', 'DEVELOPER']),async (req, res) => {
     const { lessonId } = req.params;
     
         try {
@@ -667,12 +650,20 @@ router.get('/lessonDetails/:lessonId', authenticateToken, authorizeRoles(['INDUC
                 .select('id', 'title', 'txtContent', 'flContent')
                 .where('lessonId', lessonId);
     
-                //  response object
+            // Retrieve quizzes associated with the lesson
+            lessonDetails.quizzes = await dbConn('IND_Quizes')
+                .select('id', dbConn.raw("'Self-Evaluation' as title"))
+                .where({
+                    lessonId: lessonId,
+                    quizTypeId: 1 // Assuming quizTypeId 1 is for quizzes associated with lessons
+                });
+    
+            // Construct the response object
             const lessonDetailsResponse = {
                 lessonTitle: lessonDetails.lessonTitle,
                 lessonDescription: lessonDetails.lessonDescription,
                 lessonContents: lessonDetails.lessonContents,
-              //  quizzes: lessonDetails.quizzes
+                quizzes: lessonDetails.quizzes
             };
     
             res.status(200).json(lessonDetailsResponse);
@@ -681,87 +672,6 @@ router.get('/lessonDetails/:lessonId', authenticateToken, authorizeRoles(['INDUC
             res.status(500).json({ error: 'An error occurred while fetching lesson details.' });
         }
     });
-
-  // Route to start the course
-router.get('/courses/:contentId/startCourse',authenticateToken, authorizeRoles(['EMPLOYEE','INDUCTION_OVERSIGHT', 'DEVELOPER', 'ADMIN']),  async (req, res, next) => {
-    try {
-        const { userId } = req.user;
-        const { contentId } = req.params;
-
-        function getFiscalYearFromDate(date) {
-            const year = date.getFullYear();
-            const fiscalYearStart = new Date(year, 6, 1);  
-            const fiscalYearEnd = new Date(year + 1, 5, 30);  
-        
-            if (date >= fiscalYearStart && date <= fiscalYearEnd) {
-                return `${year}/${year + 1}`;
-            } else {
-                return `${year - 1}/${year}`;
-            }
-        }
-        const currentDate = new Date();
-        const fiscalYear = getFiscalYearFromDate(currentDate);
-           
-        // Fetch courseId for the given contentId
-        const lessonInfo = await dbConn.raw(`
-            SELECT l.courseId 
-            FROM IND_Lessons l 
-            JOIN IND_LessonContent c ON l.id = c.lessonId 
-            WHERE c.id = ?`, [contentId]);
-         
-        const { courseId} = lessonInfo[0];
-
-        // Check if the user is enrolled in the course and course status is 1
-        const userCourse = await EmployeeCourse.query()
-            .findOne({ userId, courseId})
-            .where('statusid', 'in', [1, 2]);
-
-        if (!userCourse) {
-           
-                return res.status(404).json({ error: 'Sorry, you are not enrolled in this course, please enroll first !!!' });
-          
-        }
-        // If enrolled and course status is 1, update course status to 2
-        await EmployeeCourse.query()
-            .patch({ statusid: 2 })
-            .where({ userId, courseId });
-
-        // Insert into IND_employeeContent if not already inserted
-        const employeeContent = await EmployeeContent.query()
-        .findOne({ userId, contentId });
     
-    if (!employeeContent) {
-        await EmployeeContent.query()
-            .insert({ userId, contentId, courseId, fiscalYear });
-    }
-    
-           // Return the lesson content
-        const lessoncontents = await LessonContent.query()
-            .where('Id', contentId);
 
-        if (lessoncontents.length > 0) {
-            return res.json(lessoncontents);
-        } else {
-            return res.status(404).json({ error: 'No Record/s Found' });
-        }
-
-    } catch (error) {
-        next(error);
-    }
-});
-  // Viewing Courses you enrolled in
-router.get('/userCourses/:userId',authenticateToken, authorizeRoles(['EMPLOYEE','INDUCTION_OVERSIGHT', 'DEVELOPER', 'ADMIN']), async (req, res) => {
-    try {
-        const userId = req.params.userId;
-        const userCourses = await dbConn.raw('EXEC IND_GetUserCoursesWithProgress @userId=?', [userId]);
-
-        // Return the result
-        res.json(userCourses);
-    } catch (error) {
-        console.error('Error retrieving user courses:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
- // 
-  export default router;
+export default router;

@@ -12,6 +12,7 @@ const dbConn = knex({
     port: config.get('database.port'), // Get database port from config
     options: {
       encrypt: config.get('database.encrypt'), // Get database encryption setting from config
+      requestTimeout: config.get('database.requestTimeout'), // Get database name from config
     },
   },
   migrations: {

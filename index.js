@@ -6,6 +6,7 @@ import bodyParser from 'body-parser';
 import coursesRoutes from './routes/coursesRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import quizRoutes from './routes/quizRoutes.js';
+import displayRoutes from './routes/displayRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 import cors from "cors";   //Was missing
 
@@ -13,6 +14,7 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
+
 /* 
 // Set EJS as the view engine
 app.set('view engine', 'ejs');
@@ -32,6 +34,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/auth', authRoutes);
 app.use(quizRoutes);
 app.use(coursesRoutes);
+app.use(displayRoutes);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

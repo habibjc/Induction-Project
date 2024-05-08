@@ -2,13 +2,14 @@ import { Router } from 'express';
 import ExcelJS from 'exceljs';
 import dbConn from '../dbConn.js';
 import Course from '../models/Course.js';
+import Quiz from '../models/Quiz.js';
 import authenticateToken from '../middleware/authent.js';
 import authorizeRoles from '../middleware/author.js';
 import { isNull } from 'underscore';
 
 const router = Router();
 
-router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT','HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
         const courseId = req.params.courseId;
         //const {quizTypeId, lessonId } = req.body;
@@ -42,13 +43,12 @@ router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'D
         const createdOnString = createdOn.toISOString();
         const createdBy = req.user.userId;
         const quizTypeId = 2;
-        const lessonId = '';
         const meth = 'uploaded';
 /*         const quizTypeId = req.body;
         const lessonId = req.body; */
 
         // Call function to upload quiz data
-        const result =  await uploadQuizData(workbook, courseId, quizId, quizTypeId,lessonId, createdOnString, createdBy,meth, res);
+        const result =  await uploadQuizData(workbook, courseId, quizId, quizTypeId, createdOnString, createdBy,meth, res);
         // Check if any questions were skipped
         if (result && result.skipped) {
             return res.status(400).json({ error: 'Sorry, there are Similar questions, Upload Failed !!! Contact Support team' });
@@ -63,12 +63,12 @@ router.post('/addNewQuiz/:courseId', authenticateToken, authorizeRoles(['HR', 'D
         next(error);
     }
 });
-async function uploadQuizData(workbook, courseId, quizId, quizTypeId,lessonId, createdOnString, createdBy,meth, res) {
+async function uploadQuizData(workbook, courseId, quizId, quizTypeId,createdOnString, createdBy,meth, res) {
     try {
         // Check if the user has existing questions in IND_tempQuestions
         const existingQuestions = await dbConn('IND_tempQuestions').where('createdBy', createdBy);
         if (existingQuestions.length > 0) {
-            return res.status(400).json({ error: 'You have existing questions in IND_tempQuestions. Please confirm or cancel those questions before uploading new ones.' });
+            return res.status(400).json({ error: 'You have existing temporary questions. Please confirm or cancel those questions before uploading new ones.' });
         }
 
         const worksheet = workbook.getWorksheet(1); // Assuming the first worksheet is used
@@ -93,7 +93,7 @@ async function uploadQuizData(workbook, courseId, quizId, quizTypeId,lessonId, c
 
         // Insert questions into the database
         const skippedQuestions = await Promise.all(questions.map(question =>
-            addTempInductionQuestion(question.description, question.optionA, question.optionB, question.optionC, question.optionD, question.marks,question.answer,  quizId, quizTypeId,lessonId, courseId, createdOnString, createdBy,meth)
+            addTempInductionQuestion(question.description, question.optionA, question.optionB, question.optionC, question.optionD, question.marks,question.answer,  quizId, quizTypeId,courseId, createdOnString, createdBy,meth)
         ));
 
         // Check if any questions were skipped
@@ -108,12 +108,11 @@ async function uploadQuizData(workbook, courseId, quizId, quizTypeId,lessonId, c
 }
 
 //////////////////////////////////////////////////////////////
-/////////////////// ADDING EXERCISE /////////////////////////
+/////////////////// ADDING EXAM /////////////////////////
 
-router.post('/addNewExercise/:courseId/:lessonId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.post('/addNewExam', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT','HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
-        const courseId = req.params.courseId;
-        const lessonId = req.params.lessonId;
+      
         // Check if file is uploaded
         if (!req.files || !req.files.quizExcel) {
             return res.status(400).json({ error: 'No Excel file uploaded' });
@@ -126,13 +125,8 @@ router.post('/addNewExercise/:courseId/:lessonId', authenticateToken, authorizeR
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(file.data);
 
-        // Validate courseId
-        const course = await Course.query().findById(courseId);
-        if (!course) {
-            return res.status(404).json({ error: 'Course not found' });
-        }
-
         // Create a new quiz record in the database
+        const courseId ='0000000000-000000000000000000-00-00000000000';
         const quizId1 = generateRandomId();
         const quizId = quizId1.toString();
         const createdOn = new Date();
@@ -145,7 +139,7 @@ router.post('/addNewExercise/:courseId/:lessonId', authenticateToken, authorizeR
         const lessonId = req.body; */
 
         // Call function to upload quiz data
-        const result =  await uploadExerciseData(workbook, courseId, quizId, quizTypeId,lessonId, createdOnString, createdBy,meth, res);
+        const result =  await uploadExerciseData(workbook, courseId, quizId, quizTypeId,createdOnString, createdBy,meth, res);
         // Check if any questions were skipped
         if (result && result.skipped) {
             return res.status(400).json({ error: 'Sorry, there are Similar questions, Upload Failed !!! Contact Support team' });
@@ -160,12 +154,12 @@ router.post('/addNewExercise/:courseId/:lessonId', authenticateToken, authorizeR
         next(error);
     }
 });
-async function uploadExerciseData(workbook, courseId, quizId, quizTypeId,lessonId, createdOnString, createdBy,meth, res) {
+async function uploadExerciseData(workbook, courseId, quizId, quizTypeId,createdOnString, createdBy,meth, res) {
     try {
         // Check if the user has existing questions in IND_tempQuestions
         const existingQuestions = await dbConn('IND_tempQuestions').where('createdBy', createdBy);
         if (existingQuestions.length > 0) {
-            return res.status(400).json({ error: 'You have existing questions in IND_tempQuestions. Please confirm or cancel those questions before uploading new ones.' });
+            return res.status(400).json({ error: 'You have existing temporery questions. Please confirm or cancel those questions before uploading new ones.' });
         }
 
         const worksheet = workbook.getWorksheet(1); // Assuming the first worksheet is used
@@ -190,7 +184,7 @@ async function uploadExerciseData(workbook, courseId, quizId, quizTypeId,lessonI
 
         // Insert questions into the database
         const skippedQuestions = await Promise.all(questions.map(question =>
-            addTempInductionQuestion(question.description, question.optionA, question.optionB, question.optionC, question.optionD, question.marks,question.answer,  quizId, quizTypeId,lessonId, courseId, createdOnString, createdBy,meth)
+            addTempInductionQuestion(question.description, question.optionA, question.optionB, question.optionC, question.optionD, question.marks,question.answer,  quizId, quizTypeId,courseId, createdOnString, createdBy,meth)
         ));
 
         // Check if any questions were skipped
@@ -199,7 +193,7 @@ async function uploadExerciseData(workbook, courseId, quizId, quizTypeId,lessonI
         // Return a value indicating whether any questions were skipped
         return { skipped: anySkipped };
     } catch (error) {
-        console.error('Error while uploading quiz questions:', error.message);
+        console.error('Error while uploading exam questions:', error.message);
         throw error; // Throw error to be caught by the calling function
     }
 }
@@ -212,7 +206,7 @@ async function uploadExerciseData(workbook, courseId, quizId, quizTypeId,lessonI
 
 ///// INSERTING DATA IN TEMP QUESTIONS FROM FORM ///////////
 
-router.post('/addNewQuizFromForm/:courseId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.post('/addNewQuizFromForm/:courseId', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT','HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
         const courseId = req.params.courseId;
         // Validate lessonId, quizTypeId, and question data
@@ -226,14 +220,13 @@ router.post('/addNewQuizFromForm/:courseId', authenticateToken, authorizeRoles([
         const createdOnString = new Date().toISOString();
         const createdBy = req.user.userId;
         const quizTypeId = 2;
-        const lessonId = '' ;
         const meth = 'typed';
         // Process the single question
         try {
             const { description, optionA, optionB, optionC, optionD, marks, answer } = req.body;
 
             // Insert question into the database using common quiz information
-            const result = await addTempInductionQuestion(description, optionA, optionB, optionC, optionD, marks, answer, quizId, quizTypeId, lessonId, courseId, createdOnString, createdBy,meth);
+            const result = await addTempInductionQuestion(description, optionA, optionB, optionC, optionD, marks, answer, quizId, quizTypeId, courseId, createdOnString, createdBy,meth);
 
             if (result.skipped) {
                 return res.status(400).json({ error: 'Failed to add question' });
@@ -252,18 +245,19 @@ router.post('/addNewQuizFromForm/:courseId', authenticateToken, authorizeRoles([
 });
 
 ///////////////////////////////////////////////////////////////////////////////
-//////////////////  ADDING EXERCISE THROUGH FORM /////////////////////////////
+//////////////////  ADDING EXAM THROUGH FORM /////////////////////////////
 
-router.post('/addNewExerciseFromForm/:courseId/:lessonId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.post('/addNewExamFromForm', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
-        const courseId = req.params.courseId;
-        const lessonId = req.params.lessonId;
+        
+  
         // Validate lessonId, quizTypeId, and question data
         if (!req.body.description || !req.body.optionA || !req.body.optionB || !req.body.optionC || !req.body.optionD || !req.body.marks || !req.body.answer) {
             return res.status(400).json({ error: 'Incomplete or invalid form data' });
         }
 
         // Create a new quiz record in the database
+        const courseId = '0000000000-000000000000000000-00-00000000000';
         const quizId = generateRandomId();
         const createdOnString = new Date().toISOString();
         const createdBy = req.user.userId;
@@ -274,7 +268,7 @@ router.post('/addNewExerciseFromForm/:courseId/:lessonId', authenticateToken, au
             const { description, optionA, optionB, optionC, optionD, marks, answer } = req.body;
 
             // Insert question into the database using common quiz information
-            const result = await addTempInductionQuestion(description, optionA, optionB, optionC, optionD, marks, answer, quizId, quizTypeId, lessonId, courseId, createdOnString, createdBy,meth);
+            const result = await addTempInductionQuestion(description, optionA, optionB, optionC, optionD, marks, answer, quizId, quizTypeId, courseId, createdOnString, createdBy,meth);
 
             if (result.skipped) {
                 return res.status(400).json({ error: 'Failed to add question' });
@@ -287,7 +281,7 @@ router.post('/addNewExerciseFromForm/:courseId/:lessonId', authenticateToken, au
             return res.status(500).json({ error: 'Internal server error' });
         }
     } catch (error) {
-        console.error('Error adding new quiz from form:', error.message);
+        console.error('Error while adding new exam from form:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -297,9 +291,8 @@ router.post('/addNewExerciseFromForm/:courseId/:lessonId', authenticateToken, au
 ////////////////////////////////////////////////////////////////////////////
 
 
-async function addTempInductionQuestion(description, optionA, optionB, optionC, optionD, marks, answer, quizId, quizTypeId,lessonId, courseId, createdOnString, createdBy,meth, req) {
+async function addTempInductionQuestion(description, optionA, optionB, optionC, optionD, marks, answer, quizId, quizTypeId, courseId, createdOnString, createdBy,meth, req) {
     try {
-       
              // Stringify JSON data
              const descriptionString = typeof description === 'object' ? JSON.stringify(description) : String(description);
              const optionAString = typeof optionA === 'object' ? JSON.stringify(optionA) : String(optionA);
@@ -319,14 +312,13 @@ async function addTempInductionQuestion(description, optionA, optionB, optionC, 
             return { skipped: true }; // Indicate that the question was skipped
         }
 
-          // Check if lessonId is provided
-          const lessonIdString = lessonId || null;
+        
         
         if(meth==='typed'){ quizId= null}
           // Call the stored procedure to insert data into the temporary table
         await dbConn.raw(`
-            EXEC dbo.IND_InsertTempQuestion @description = ?, @optionA = ?, @optionB = ?, @optionC = ?, @optionD = ?, @answer = ?, @marks = ?, @quizId = ?, @quizTypeId = ?,@lessonId = ?, @courseId = ?, @createdOn = ?, @createdBy = ?,@meth=?`,
-            [descriptionString , optionAString, optionBString, optionCString, optionDString, answer, marks, quizId, quizTypeId, lessonIdString,courseId, createdOnString, createdBy,meth]
+            EXEC dbo.IND_InsertTempQuestion @description = ?, @optionA = ?, @optionB = ?, @optionC = ?, @optionD = ?, @answer = ?, @marks = ?, @quizId = ?, @quizTypeId = ?, @courseId = ?, @createdOn = ?, @createdBy = ?,@meth=?`,
+            [descriptionString , optionAString, optionBString, optionCString, optionDString, answer, marks, quizId, quizTypeId,courseId, createdOnString, createdBy,meth]
         );
 
         // Log the inserted quiz
@@ -347,7 +339,7 @@ function generateRandomId() {
 
 
 // Display uploaded questions endpoint
-router.get('/displayUploadedQuestions/:userId',  authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.get('/displayUploadedQuestions/:userId',  authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT','HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
         const userId = req.params.userId;
 
@@ -378,7 +370,7 @@ router.delete('/cancelUploadedQuestions/:userId',  authenticateToken, authorizeR
     }
 });
 
-router.post('/confirmUploadQuizQuestions/:userId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+router.post('/confirmUploadQuizQuestions/:userId', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT','HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     const confirmingUserId = req.params.userId;
 
     try {
@@ -395,9 +387,9 @@ router.post('/confirmUploadQuizQuestions/:userId', authenticateToken, authorizeR
         res.status(200).json({ message: 'Questions confirmed and inserted into database successfully' });
     } catch (error) {
         // Check if the error is due to constraint violation
-        if (error.number === 51000 && error.message.includes('Cannot insert another record with the same courseId and quizType 2')) {
+        if (error.number === 51000 && error.message.includes('Cannot insert another record with the same course')) {
             // If the error is due to the constraint violation, send custom error message to the user
-            res.status(400).json({ error: 'Sorry, you cannot have 2 final quizzes on a single course. Please go to Quiz and add questions.' });
+            res.status(400).json({ error: 'Sorry, you cannot have 2 final quizzes on a single course OR 2 Exams. Please go to Quiz/Exam and add questions.' });
         } else {
             // For other types of errors, send the specific error message returned by the stored procedure
             console.error('An error occurred while confirming quiz questions upload:', error.message);
@@ -505,7 +497,7 @@ router.put('/deletequiz/:quizId',  authenticateToken, authorizeRoles(['HR', 'DEV
     }
 });
 
-/////// ------ Updating a Quiz by either changing courseId, lessonId and quizTypeId------
+/////// ------ Updating a Quiz by changing courseId, lessonId or quizTypeId------
 router.put('/updateQuiz/:quizId',  authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']),async (req, res) => {
     try {
         const userId = req.user.userId; // Assuming the user object is available in the request and contains the user's ID
@@ -514,8 +506,8 @@ router.put('/updateQuiz/:quizId',  authenticateToken, authorizeRoles(['HR', 'DEV
 
         // Execute the stored procedure using dbConn.raw with parameterized queries
         await dbConn.raw(`
-            EXEC IND_UpdateQuiz @userId = ?, @quizId = ?, @courseName = ?, @quizTypeName = ?, @lessonName = ?
-        `, [userId, quizId, courseName, quizTypeName, lessonName]);
+            EXEC IND_UpdateQuiz @userId = ?, @quizId = ?, @courseName = ?
+        `, [userId, quizId, courseName]);
 
         res.status(200).json({ message: 'Quiz updated successfully.' });
     } catch (error) {
@@ -559,67 +551,373 @@ router.put('/updatequestion/:questionId',authenticateToken, authorizeRoles(['HR'
     }
 });
 
-// Route to display courses for HR
-router.get('/positions_in_institution/:positionId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res) => {
+
+
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////// ROUTES ON ADDITION OF QUESTIONS ON EXISTING QUIZ OR EXAM /////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+router.post('/addQuestionsToQuiz/:quizId', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT','HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
     try {
-        // Get the positionId from the request parameters
-        const positionId = req.params.positionId;
-        const { entitySectorId } = req.user;
-        // Query to retrieve courses for the specified position
-        const query = `
-            SELECT c.id,c.title,c.description,courseImage
-            FROM IND_Courses c
-            JOIN IND_positionCourses pc ON c.id = pc.courseId
-            WHERE pc.positionID = ? AND c.isDeleted = 0 AND c.entitySectorId = ?
-        `;
+        
+        //const {quizTypeId, lessonId } = req.body;
+        // Validate courseId here
 
-        // Execute the query to fetch courses
-        const courses = await dbConn.raw(query, [positionId, entitySectorId]);
-   if(courses.length === 0)
-   {
-    res.status(400).json({message:'No Courses found !!!'});
-   }
-   else{
-        // Send the courses as a response
-        res.json(courses); }
-    } catch (error) {
-        // Handle errors
-        console.error('Error fetching courses:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
+        console.log(req.body);
+        console.log(req.files);
 
-// Route to display courses for employees
-
-router.get('/courses_for_employeeposition/', authenticateToken, authorizeRoles(['EMPLOYEE','HR', 'DEVELOPER', 'ADMIN']), async (req, res) => {
-    try {
-        // Get the employeeId, entitySectorId, and positionId from the request user object
-        const { userId, entitySectorId } = req.user;
-
-        // Query to retrieve courses for the specified employee's position
-        const query = `
-            SELECT c.id,c.title,c.description,courseImage
-            FROM IND_Courses c
-            JOIN IND_positionCourses pc ON c.id = pc.courseId
-            WHERE pc.positionId IN (
-                SELECT positionId FROM ORG_employeepositions WHERE employeeId = ?
-            ) AND c.isDeleted = 0 AND c.entitySectorId = ?
-        `;
-
-        // Execute the query to fetch courses
-        const courses = await dbConn.raw(query, [userId, entitySectorId]);
-        if(courses.length === 0)
-        {
-         res.status(400).json({message:'No Courses found !!!'});
+        // Check if file is uploaded
+        if (!req.files || !req.files.quizExcel) {
+            return res.status(400).json({ error: 'No Excel file uploaded' });
         }
-        else{
-             // Send the courses as a response
-             res.json(courses); }
+        const quizId = req.params.quizId;
+        // Read the file from the request stream
+        const file = req.files.quizExcel;
+
+        // Load the workbook from the uploaded Excel file
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(file.data);
+
+        // Validate courseId
+        const quiz = await Quiz.query()
+        .where('Id', quizId)
+        .first(); // Use first() to retrieve only the first matching record
+
+    if (!quiz) {
+        return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+        const courseId = quiz.courseId;
+        const createdOn = new Date();
+        const createdOnString = quiz.createdOn;
+        const createdBy = req.user.userId;
+        const quizTypeId =quiz.quizTypeId;
+        const meth = 'uploaded';
+
+        // Call function to upload quiz data
+        const result =  await uploadQuizDataadded(workbook, courseId, quizId, quizTypeId, createdOnString, createdBy,meth, res);
+        // Check if any questions were skipped
+        if (result && result.skipped) {
+            return res.status(400).json({ error: 'Sorry, there are Similar questions, Upload Failed !!! Contact Support team' });
+        } else {
+            res.status(200).json({ message: 'Questions uploaded successfully !!!' }); 
+        }
+       
+   
     } catch (error) {
         // Handle errors
-        console.error('Error fetching courses:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error while adding quiz:', error);
+        next(error);
     }
 });
+async function uploadQuizDataadded(workbook, courseId, quizId, quizTypeId,createdOnString, createdBy,meth, res) {
+    try {
+        // Check if the user has existing questions in IND_tempQuestions
+        const existingQuestions = await dbConn('IND_tempQuestions').where('createdBy', createdBy);
+        if (existingQuestions.length > 0) {
+            return res.status(400).json({ error: 'You have existing temporary questions. Please confirm or cancel those questions before uploading new ones.' });
+        }
+
+        const worksheet = workbook.getWorksheet(1); // Assuming the first worksheet is used
+        const questions = [];
+
+        worksheet.eachRow(async (row, rowNumber) => {
+            if (rowNumber !== 1) { // Skip the header row
+                const [, description, optionA, optionB, optionC, optionD, answer, marks] = row.values;
+
+                // Convert marks to a number
+                const marksNumber = parseInt(marks);
+
+                // Check if marksNumber is a valid number
+                if (!isNaN(marksNumber)) {
+                    questions.push({ description, optionA, optionB, optionC, optionD, marks: marksNumber, answer,meth });
+                } else {
+                    //  console.error('Invalid Value for Marks:', marks);
+                    return;
+                }
+            }
+        });
+
+        // Insert questions into the database
+        const skippedQuestions = await Promise.all(questions.map(question =>
+            addTempInductionQuestionadded(question.description, question.optionA, question.optionB, question.optionC, question.optionD, question.marks,question.answer,  quizId, quizTypeId,courseId, createdOnString, createdBy,meth)
+        ));
+
+        // Check if any questions were skipped
+        const anySkipped = skippedQuestions.some(question => question.skipped);
+
+        // Return a value indicating whether any questions were skipped
+        return { skipped: anySkipped };
+    } catch (error) {
+        console.error('Error while uploading quiz questions:', error.message);
+        throw error; // Throw error to be caught by the calling function
+    }
+}
+
+//////////////////////////////////////////////////////////////
+/////////////////// ADDING QUESTIONS TO EXAM /////////////////////////
+
+router.post('/addQuestionsToExam/:quizId', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT','HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+    try {
+        // Check if file is uploaded
+        if (!req.files || !req.files.quizExcel) {
+            return res.status(400).json({ error: 'No Excel file uploaded' });
+        }
+        const quizId = req.params.quizId;
+        // Read the file from the request stream
+        const file = req.files.quizExcel;
+
+        // Load the workbook from the uploaded Excel file
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(file.data);
+
+          // Validate courseId
+         const quiz = await Quiz.query()
+         .where('Id', quizId)
+         .first(); // Use first() to retrieve only the first matching record
+ 
+        if (!quiz) {
+          return res.status(404).json({ error: 'Quiz not found' });
+        }
+
+        // Create a new quiz record in the database
+        const courseId ='0000000000-000000000000000000-00-00000000000';
+        const createdOn = new Date();
+        const createdOnString = quiz.createdOn;
+        const createdBy = req.user.userId;
+        const quizTypeId = 1;
+        
+        const meth = 'uploaded';
+/*         const quizTypeId = req.body;
+        const lessonId = req.body; */
+
+        // Call function to upload quiz data
+        const result =  await uploadExerciseDataadded(workbook, courseId, quizId, quizTypeId,createdOnString, createdBy,meth, res);
+        // Check if any questions were skipped
+        if (result && result.skipped) {
+            return res.status(400).json({ error: 'Sorry, there are Similar questions, Upload Failed !!! Contact Support team' });
+        }
+
+        // Respond with success message
+        res.status(200).json({ message: 'Questions uploaded successfully !!!' });
+   
+    } catch (error) {
+        // Handle errors
+        console.error('Error while adding quiz:', error);
+        next(error);
+    }
+});
+async function uploadExerciseDataadded(workbook, courseId, quizId, quizTypeId,createdOnString, createdBy,meth, res) {
+    try {
+        // Check if the user has existing questions in IND_tempQuestions
+        const existingQuestions = await dbConn('IND_tempQuestions').where('createdBy', createdBy);
+        if (existingQuestions.length > 0) {
+            return res.status(400).json({ error: 'You have existing temporery questions. Please confirm or cancel those questions before uploading new ones.' });
+        }
+
+        const worksheet = workbook.getWorksheet(1); // Assuming the first worksheet is used
+        const questions = [];
+
+        worksheet.eachRow(async (row, rowNumber) => {
+            if (rowNumber !== 1) { // Skip the header row
+                const [, description, optionA, optionB, optionC, optionD, answer, marks] = row.values;
+
+                // Convert marks to a number
+                const marksNumber = parseInt(marks);
+
+                // Check if marksNumber is a valid number
+                if (!isNaN(marksNumber)) {
+                    questions.push({ description, optionA, optionB, optionC, optionD, marks: marksNumber, answer,meth });
+                } else {
+                    //  console.error('Invalid Value for Marks:', marks);
+                    return;
+                }
+            }
+        });
+
+        // Insert questions into the database
+        const skippedQuestions = await Promise.all(questions.map(question =>
+            addTempInductionQuestionadded(question.description, question.optionA, question.optionB, question.optionC, question.optionD, question.marks,question.answer,  quizId, quizTypeId,courseId, createdOnString, createdBy,meth)
+        ));
+
+        // Check if any questions were skipped
+        const anySkipped = skippedQuestions.some(question => question.skipped);
+
+        // Return a value indicating whether any questions were skipped
+        return { skipped: anySkipped };
+    } catch (error) {
+        console.error('Error while uploading exam questions:', error.message);
+        throw error; // Throw error to be caught by the calling function
+    }
+}
+
+
+///// INSERTING DATA IN TEMP QUESTIONS FROM FORM ///////////
+
+router.post('/addNewQuestionsToQuizFromForm/:quizId', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGHT','HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+    try {
+        
+        // Validate lessonId, quizTypeId, and question data
+     
+        if (!req.body.description || !req.body.optionA || !req.body.optionB || !req.body.optionC || !req.body.optionD || !req.body.marks || !req.body.answer) {
+            return res.status(400).json({ error: 'Incomplete or invalid form data' });
+        }
+        const quizId = req.params.quizId;
+        // Validate courseId
+        const quiz = await Quiz.query()
+       .where('Id', quizId)
+       .first(); // Use first() to retrieve only the first matching record
+        
+        if (!quiz) {
+          return res.status(404).json({ error: 'Quiz not found' });
+        }
+
+        // Create a new quiz record in the database
+        const courseId = quiz.courseId;
+        const createdOnString = quiz.createdOn;
+        const createdBy = req.user.userId;
+        const quizTypeId = 2;
+        const meth = 'typed';
+        // Process the single question
+        try {
+            const { description, optionA, optionB, optionC, optionD, marks, answer } = req.body;
+
+            // Insert question into the database using common quiz information
+            const result = await addTempInductionQuestionadded(description, optionA, optionB, optionC, optionD, marks, answer, quizId, quizTypeId, courseId, createdOnString, createdBy,meth);
+
+            if (result.skipped) {
+                return res.status(400).json({ error: 'Failed to add question' });
+            } else {
+                // If question added successfully, return success response
+                return res.status(200).json({ message: 'Question added successfully' });
+            }
+        } catch (error) {
+            console.error('Error adding question:', error.message);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    } catch (error) {
+        console.error('Error adding new quiz from form:', error.message);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+///////////////////////////////////////////////////////////////////////////////
+//////////////////  ADDING EXAM THROUGH FORM /////////////////////////////
+
+router.post('/addQuestionsToExamFromForm/:quizId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+    try {
+                // Validate lessonId, quizTypeId, and question data
+        if (!req.body.description || !req.body.optionA || !req.body.optionB || !req.body.optionC || !req.body.optionD || !req.body.marks || !req.body.answer) {
+            return res.status(400).json({ error: 'Incomplete or invalid form data' });
+        }
+        const quizId = req.params.quizId;
+          // Validate courseId
+          const quiz = await Quiz.query()
+          .where('Id', quizId)
+          .first(); // Use first() to retrieve only the first matching record
+         
+        if (!quiz) {
+          return res.status(404).json({ error: 'Quiz not found' });
+        }
+        // Create a new quiz record in the database
+        const courseId = '0000000000-000000000000000000-00-00000000000';
+        const createdOnString = quiz.createdOn;
+        const createdBy = req.user.userId;
+        const quizTypeId = 1;
+        const meth = 'typed';
+        // Process the single question
+        try {
+            const { description, optionA, optionB, optionC, optionD, marks, answer } = req.body;
+
+            // Insert question into the database using common quiz information
+            const result = await addTempInductionQuestionadded(description, optionA, optionB, optionC, optionD, marks, answer, quizId, quizTypeId, courseId, createdOnString, createdBy,meth);
+
+            if (result.skipped) {
+                return res.status(400).json({ error: 'Failed to add question' });
+            } else {
+                // If question added successfully, return success response
+                return res.status(200).json({ message: 'Question added successfully' });
+            }
+        } catch (error) {
+            console.error('Error adding question:', error.message);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    } catch (error) {
+        console.error('Error while adding new exam from form:', error.message);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+async function addTempInductionQuestionadded(description, optionA, optionB, optionC, optionD, marks, answer, quizId, quizTypeId, courseId, createdOnString, createdBy,meth, req) {
+    try {
+             // Stringify JSON data
+             const descriptionString = typeof description === 'object' ? JSON.stringify(description) : String(description);
+             const optionAString = typeof optionA === 'object' ? JSON.stringify(optionA) : String(optionA);
+             const optionBString = typeof optionB === 'object' ? JSON.stringify(optionB) : String(optionB);
+             const optionCString = typeof optionC === 'object' ? JSON.stringify(optionC) : String(optionC);
+             const optionDString = typeof optionD === 'object' ? JSON.stringify(optionD) : String(optionD);
+             
+     // Check if a similar question already exists (uploaded by a different user)
+        const existingQuestion = await dbConn('IND_tempQuestions')
+            .where({
+                description: descriptionString
+            })
+            .first();
+
+        if (existingQuestion) {
+            console.log('Sorry, some of these questions exist in temporary storage, cancel of confirm them first:', description);
+            return { skipped: true }; // Indicate that the question was skipped
+        }
+
+       
+          // Call the stored procedure to insert data into the temporary table
+        await dbConn.raw(`
+            EXEC dbo.IND_InsertTempQuestion @description = ?, @optionA = ?, @optionB = ?, @optionC = ?, @optionD = ?, @answer = ?, @marks = ?, @quizId = ?, @quizTypeId = ?, @courseId = ?, @createdOn = ?, @createdBy = ?,@meth=?`,
+            [descriptionString , optionAString, optionBString, optionCString, optionDString, answer, marks, quizId, quizTypeId,courseId, createdOnString, createdBy,meth]
+        );
+
+        // Log the inserted quiz
+        console.log('Question/s Uploaded Successfully:', description);
+        return { skipped: false }; // Indicate that the question was inserted successfully
+    } catch (error) {
+        // Log or return the specific error received
+        console.error('Error inserting data into temporary table:', error.message);
+        throw new Error('Error inserting data into temporary table');
+    }
+}
+router.post('/confirmQuizAddedQuestions/:userId', authenticateToken, authorizeRoles(['HR', 'DEVELOPER', 'ADMIN']), async (req, res, next) => {
+    const confirmingUserId = req.params.userId;
+
+    try {
+        // Check if the user attempting to confirm the upload is the same user who uploaded the questions
+        const uploadedQuestionsByUser = await dbConn('IND_tempQuestions').where('createdBy', confirmingUserId);
+        if (uploadedQuestionsByUser.length === 0) {
+            return res.status(400).json({ error: 'No questions found uploaded by you. Please upload questions first.' });
+        }
+
+// Retrieve the questions from IND_tempQuestions for the specified confirmingUserId
+const questions = await dbConn('IND_tempQuestions').where('createdBy', confirmingUserId);
+
+// Call the stored procedure to confirm the upload
+await dbConn.raw('EXEC IND_ConfirmUploadQuestions ?', [confirmingUserId]);
+
+// Respond with success message
+res.status(200).json({ message: 'Questions confirmed and inserted into the database successfully.' });
+
+} catch (error) {
+    // Handle any errors
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+}
+});
+
+
+
 
 export default router;
