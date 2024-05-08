@@ -13,6 +13,8 @@ import authorizeRoles from '../middleware/author.js';
 import EmployeeCourse from '../models/employeeCourse.js';
 import { isNull } from 'underscore';
 
+
+
 const router = Router();
 
 ////// INSERTS /////
@@ -32,27 +34,30 @@ router.post('/addCourse', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGH
       });
   
       const { error } = schema.validate(courseData);
-      if (error) {
-        throw new Error(error.details[0].message);
-      }
- 
+  
       const { entitySectorId } = req.user;
   
       const currentDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   
-      function generateRandomId() {
-        return Math.floor(100 + Math.random() * 900);
-      }
-
-      const courseCount = generateRandomId();
-      const id = `${entitySectorId}-${currentDate}${courseCount}`;
- 
-      courseData.id = id;
- 
-      courseData.isDeleted = '0';
+      //New!!!
+          const courseCount = await Course.query()
+        .where('entitySectorId', entitySectorId)
+        .resultSize();
   
+  //New!!!
+      const paddedCount = (courseCount + 1).toString().padStart(5, ''); // Pad the count to ensure five digits
+      const id = `${entitySectorId}-${currentDate}-${paddedCount}`;
+  
+      courseData.id = id;
+      courseData.isDeleted = '0';
       courseData.uploadedDate = new Date();
-   
+  
+      if (files && files.image) {  //New!!!
+        const imageName = 'course_image_' + Date.now() + '_' + files.image.name;
+        files.image.mv('uploadedCourses/' + imageName);
+        courseData.image = '/uploadedCourses/' + imageName;
+      }
+  
       if (files && files.courseImage) {
         const courseImageName = 'course_image_' + Date.now() + '_' + files.courseImage.name;
         files.courseImage.mv('uploadedCourses/' + courseImageName);
@@ -61,15 +66,14 @@ router.post('/addCourse', authenticateToken, authorizeRoles(['INDUCTION_OVERSIGH
       const createdBy = req.user.userId;
       courseData.createdBy = createdBy;
       courseData.entitySectorId = entitySectorId;
-
-      const newCourse = await Course.query().insert(courseData); // Assuming 'Course' is the correct model
-
+      const newCourse = await Course.query().insert(courseData);
   
       res.status(201).json(newCourse);
     } catch (error) {
       next(error);
     }
-});
+  });
+
 
 ////// INSERTS /////
 // Add a new lesson to a course

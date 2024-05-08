@@ -4,3 +4,10 @@ node_modules/
 # Ignore config folder
 config/
 .env
+/uploads
+uploadedCourses/
+uploadedLessonContent/
+quizUploads/
+qrts.js
+coursesRoutes1.js
+resetRoutes.js
