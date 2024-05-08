@@ -8,4 +8,6 @@ config/
 uploadedCourses/
 uploadedLessonContent/
 quizUploads/
-qrts.js/
+qrts.js
+coursesRoutes1.js
+resetRoutes.js
